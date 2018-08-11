@@ -61,8 +61,6 @@ class Builder(Extractor):
     else:
       return (parsed[0],), parsed[1]
 
-
-
   def __mul__(self, other):
     return Then(self, Maybe(other))
 
@@ -80,6 +78,9 @@ class Builder(Extractor):
 
 
 class Match(Builder):
+  """
+
+  """
 
   def __init__(self, extractor, call=tuple):
     self._extractor = extractor
@@ -94,6 +95,9 @@ class Match(Builder):
 
 
 class Either(Builder):
+  """
+
+  """
 
   def __init__(self, left: Extractor, right: Extractor):
     self._left = left
@@ -108,6 +112,10 @@ class Either(Builder):
 
 
 class Then(Builder):
+  """
+
+  """
+
   def __init__(self, first, then: Builder):
     self._first = first
     self._then = then
@@ -126,6 +134,10 @@ class Then(Builder):
 
 
 class Maybe(Builder):
+  """
+
+  """
+
   def __init__(self, extractor):
     self.extr = extractor
 
@@ -193,6 +205,10 @@ class Lazy(Builder):
 
 
 class RegExpr(Extractor):
+  """
+
+  """
+
   def __init__(self, pattern):
     self.pattern = pattern
 

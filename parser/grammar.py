@@ -1,23 +1,41 @@
 from parser.combos import *
+from itertools import zip_longest
 
 
 class CommonExpr:
-  pass
+  __slots__ = ()
+
+  def __init__(self, *args, **kwargs):
+    for arg, slot in zip_longest(args, self.__slots__):
+      setattr(self, slot, arg)
 
 
 class PrimitiveLiteral(CommonExpr):
-  def __init__(self, value):
-    self.value = value
+  __slots__ = 'value',
 
 
 class Identifier(CommonExpr):
-  def __init__(self, name):
-    self.name = name
+  __slots__ = 'name',
 
 
-class RelationExpr(object):
-  def __init__(self, common_expr):
-    self.common_expr = common_expr
+class RelationExpr(CommonExpr):
+  __slots__ = 'common_expr',
+
+
+class ComparisonExpr(CommonExpr):
+  __slots__ = 'common_expr', 'relation_expr',
+
+
+class BooleanCommonExpr(CommonExpr):
+  __slots__ = 'bool_expr', 'conjunction_expr',
+
+
+class ConjunctionExpr(CommonExpr):
+  __slots__ = 'bool_common_expr',
+
+
+class BooleanParenExpr(CommonExpr):
+  __slots__ = 'bool_common_expr',
 
 
 EqExpr = type('EqExpr', (RelationExpr,), {})
@@ -26,29 +44,6 @@ LtExpr = type('LtExpr', (RelationExpr,), {})
 LeExpr = type('LeExpr', (RelationExpr,), {})
 GtExpr = type('GtExpr', (RelationExpr,), {})
 GeExpr = type('GeExpr', (RelationExpr,), {})
-
-
-class ComparisonExpr(object):
-  def __init__(self, common_expr, relation_expr):
-    self.common_expr = common_expr
-    self.relation_expr = relation_expr
-
-
-class BooleanCommonExpr(object):
-  def __init__(self, bool_expr, conjunction_expr=None):
-    self.bool_expr = bool_expr
-    self.conjunction_expr = conjunction_expr
-
-
-class BooleanParenExpr:
-  def __init__(self, bool_common_expr):
-    self.bool_common_expr = bool_common_expr
-
-
-class ConjunctionExpr(object):
-  def __init__(self, bool_common_expr):
-    self.bool_common_expr = bool_common_expr
-
 
 AndExpr = type('AndExpr', (ConjunctionExpr,), {})
 OrExpr = type('OrExpr', (ConjunctionExpr,), {})
