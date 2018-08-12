@@ -1,10 +1,7 @@
 # Created by .ignore support plugin (hsz.mobi)
 .idea/
-restful/
-api/
 db.sqlite3
-manage.py
-parser/.pytest_cache/
+*/.pytest_cache/*
 templates/
 *__pycache__/
 *.pytest_cache
