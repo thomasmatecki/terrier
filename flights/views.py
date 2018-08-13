@@ -14,7 +14,9 @@ def api(request, entity):
 
   if filter_clause:
     filter_ast = boolCommonExpr <= filter_clause
+    result_set = entity_model.objects.filter(filter_ast.bool_expr.q)
 
-  return JsonResponse(
-    list(map(model_to_dict, entity_model.objects.all())), safe=False
-  )
+    return JsonResponse(
+      list(map(model_to_dict,
+               result_set)), safe=False
+    )

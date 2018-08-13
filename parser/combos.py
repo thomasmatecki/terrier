@@ -12,10 +12,6 @@ class Extractor(object):
     """
     raise NotImplementedError()
 
-  # @property
-  # def _cls(self):
-  #   return self.__class__
-
   def __add__(self, other):
     return Then(self, other)
 
@@ -98,7 +94,6 @@ class Either(Builder):
   """
 
   """
-
   def __init__(self, left: Extractor, right: Extractor):
     self._left = left
     self._right = right

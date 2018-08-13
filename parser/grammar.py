@@ -1,5 +1,6 @@
 from parser.combos import *
 from itertools import zip_longest
+from django.db.models import F, Q
 
 
 class CommonExpr:
@@ -13,17 +14,38 @@ class CommonExpr:
 class PrimitiveLiteral(CommonExpr):
   __slots__ = 'value',
 
+  @property
+  def v(self):
+    return self.value
+
 
 class Identifier(CommonExpr):
   __slots__ = 'name',
+
+  @property
+  def v(self):
+    return F(self.name)
 
 
 class RelationExpr(CommonExpr):
   __slots__ = 'common_expr',
 
+  _k = ''
+
+  @property
+  def k(self):
+    return self.common_expr.name + self._k
+
 
 class ComparisonExpr(CommonExpr):
-  __slots__ = 'common_expr', 'relation_expr',
+  __slots__ = 'relation_expr', 'common_expr',
+
+  @property
+  def q(self):
+    k = self.relation_expr.k
+    v = self.common_expr.v
+
+    return Q(**{k: v})
 
 
 class BooleanCommonExpr(CommonExpr):
@@ -39,14 +61,16 @@ class BooleanParenExpr(CommonExpr):
 
 
 EqExpr = type('EqExpr', (RelationExpr,), {})
-NeExpr = type('NeExpr', (RelationExpr,), {})
-LtExpr = type('LtExpr', (RelationExpr,), {})
-LeExpr = type('LeExpr', (RelationExpr,), {})
-GtExpr = type('GtExpr', (RelationExpr,), {})
-GeExpr = type('GeExpr', (RelationExpr,), {})
+NeExpr = type('NeExpr', (RelationExpr,), {'_k': '__ne'})
+LtExpr = type('LtExpr', (RelationExpr,), {'_k': '__lt'})
+LeExpr = type('LeExpr', (RelationExpr,), {'_k': '__lte'})
+GtExpr = type('GtExpr', (RelationExpr,), {'_k': '__gt'})
+GeExpr = type('GeExpr', (RelationExpr,), {'_k': '__ge'})
 
 AndExpr = type('AndExpr', (ConjunctionExpr,), {})
 OrExpr = type('OrExpr', (ConjunctionExpr,), {})
+
+# Grammar:
 
 BWS = RE(r"\s*")
 RWS = RE(r"\s+")
@@ -61,15 +85,15 @@ identifier = RE(r"(\w+)") >> Identifier
 
 commonExpr = (primitiveLiteral | identifier)
 
-eqExpr = RWS + 'eq' + RWS + commonExpr >> EqExpr
-neExpr = RWS + 'ne' + RWS + commonExpr >> NeExpr
-ltExpr = RWS + 'lt' + RWS + commonExpr >> LtExpr
-leExpr = RWS + 'le' + RWS + commonExpr >> LeExpr
-gtExpr = RWS + 'gt' + RWS + commonExpr >> GtExpr
-geExpr = RWS + 'ge' + RWS + commonExpr >> GeExpr
+eqExpr = commonExpr + (RWS + 'eq' + RWS) >> EqExpr
+neExpr = commonExpr + (RWS + 'ne' + RWS) >> NeExpr
+ltExpr = commonExpr + (RWS + 'lt' + RWS) >> LtExpr
+leExpr = commonExpr + (RWS + 'le' + RWS) >> LeExpr
+gtExpr = commonExpr + (RWS + 'gt' + RWS) >> GtExpr
+geExpr = commonExpr + (RWS + 'ge' + RWS) >> GeExpr
 
 relationExpr = (eqExpr | neExpr | ltExpr | leExpr | gtExpr | geExpr)
-boolPredicateExpr = (commonExpr + relationExpr) >> ComparisonExpr
+boolPredicateExpr = (relationExpr + commonExpr) >> ComparisonExpr
 
 # By convention, how about forward declared expressions(i.e lazily evaluated,
 # e.g. recursive parsers) are macro'ed with the same name and a preceding
