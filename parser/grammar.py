@@ -75,7 +75,7 @@ class ComparisonExpr(CommonExpr):
     
       color eq flavor -> {'color' : F('flavor')} -> color=F('flavor')
 
-    If there is a primitive literal in the assignment position transpose. If this is
+    If there is a primitive literal in the assignment position, then transpose. If this is
     still true, let the `k` method of primitive literal throw an error. e.g.:
 
       'yellow' eq 'red' -> 'red' eq 'yellow' -> No Dice...
