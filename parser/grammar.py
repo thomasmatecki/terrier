@@ -3,6 +3,10 @@ from itertools import zip_longest
 from django.db.models import F, Q
 
 
+class InvalidQueryException(Exception):
+  pass
+
+
 class CommonExpr:
   __slots__ = ()
 
@@ -18,6 +22,10 @@ class PrimitiveLiteral(CommonExpr):
   def v(self):
     return self.value
 
+  @property
+  def k(self):
+    raise InvalidQueryException()
+
 
 class Identifier(CommonExpr):
   __slots__ = 'name',
@@ -25,6 +33,8 @@ class Identifier(CommonExpr):
   @property
   def v(self):
     return F(self.name)
+
+  k = v
 
 
 class RelationExpr(CommonExpr):
@@ -36,20 +46,61 @@ class RelationExpr(CommonExpr):
   def k(self):
     return self.common_expr.name + self._k
 
+  def _opposite(self):
+    return self
+
+  @property
+  def opposite(self):
+    return self._opposite()
+
 
 class ComparisonExpr(CommonExpr):
   __slots__ = 'relation_expr', 'common_expr',
 
   @property
-  def q(self):
-    k = self.relation_expr.k
-    v = self.common_expr.v
+  def _transpose(self):
+    return ComparisonExpr(self.relation_expr.opposite(self.common_expr),
+                          self.relation_expr.common_expr)
 
-    return Q(**{k: v})
+  @property
+  def Q(self) -> Q:
+    """
+    The result is a Q object that takes a dictionary with keys that are fields in the
+    assignment position of **kwargs; i.e:
+
+      color eq 'yellow' -> {'color' : 'yellow'} -> color=yellow
+      
+    If the Comparison expression has a field in both, positions, that's fine. Use the 
+    'name' in key (the assignment target) and the F object in the target:
+    
+      color eq flavor -> {'color' : F('flavor')} -> color=F('flavor')
+
+    If there is a primitive literal in the assignment position transpose. If this is
+    still true, let the `k` method of primitive literal throw an error. e.g.:
+
+      'yellow' eq 'red' -> 'red' eq 'yellow' -> No Dice...
+
+    :return: django.db.models.Q object
+    """
+    if isinstance(self.relation_expr.common_expr, PrimitiveLiteral):
+      return self._transpose.Q
+    else:
+      return Q(**{self.relation_expr.k: self.common_expr.v})
+
+
+def identity(x):
+  return x
 
 
 class BooleanCommonExpr(CommonExpr):
   __slots__ = 'bool_expr', 'conjunction_expr',
+
+  @property
+  def Q(self):
+    # if self.conjunction_expr:
+    #   return self.conjunction_expr.C(self.bool_expr.Q)
+    # else:
+    return self.bool_expr.Q
 
 
 class ConjunctionExpr(CommonExpr):
@@ -62,10 +113,10 @@ class BooleanParenExpr(CommonExpr):
 
 EqExpr = type('EqExpr', (RelationExpr,), {})
 NeExpr = type('NeExpr', (RelationExpr,), {'_k': '__ne'})
-LtExpr = type('LtExpr', (RelationExpr,), {'_k': '__lt'})
-LeExpr = type('LeExpr', (RelationExpr,), {'_k': '__lte'})
-GtExpr = type('GtExpr', (RelationExpr,), {'_k': '__gt'})
-GeExpr = type('GeExpr', (RelationExpr,), {'_k': '__ge'})
+LtExpr = type('LtExpr', (RelationExpr,), {'_k': '__lt', '_opposite': lambda: GtExpr})
+LeExpr = type('LeExpr', (RelationExpr,), {'_k': '__lte', '_opposite': lambda: GeExpr})
+GtExpr = type('GtExpr', (RelationExpr,), {'_k': '__gt', '_opposite': lambda: LtExpr})
+GeExpr = type('GeExpr', (RelationExpr,), {'_k': '__gte', '_opposite': lambda: LeExpr})
 
 AndExpr = type('AndExpr', (ConjunctionExpr,), {})
 OrExpr = type('OrExpr', (ConjunctionExpr,), {})
