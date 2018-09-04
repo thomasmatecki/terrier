@@ -1,6 +1,6 @@
 from parser.combos import *
 from itertools import zip_longest
-from django.db.models import F, Q
+from django.db import models  # F, Q
 
 
 class InvalidQueryException(Exception):
@@ -32,7 +32,7 @@ class Identifier(CommonExpr):
 
   @property
   def v(self):
-    return F(self.name)
+    return models.F(self.name)
 
   k = v
 
@@ -46,33 +46,34 @@ class RelationExpr(CommonExpr):
   def k(self):
     return self.common_expr.name + self._k
 
-  def _opposite(self):
-    return self
-
   @property
-  def opposite(self):
-    return self._opposite()
+  def inverse(self):
+    return self.__class__
 
 
 class ComparisonExpr(CommonExpr):
   __slots__ = 'relation_expr', 'common_expr',
 
   @property
-  def _transpose(self):
-    return ComparisonExpr(self.relation_expr.opposite(self.common_expr),
-                          self.relation_expr.common_expr)
+  def Q(self) -> models.Q:
+    return self._query(allow_transpose=True)
 
   @property
-  def Q(self) -> Q:
+  def _transpose(self):
+    opposite = self.relation_expr.inverse
+    return ComparisonExpr(opposite(self.common_expr),
+                          self.relation_expr.common_expr)
+
+  def _query(self, allow_transpose=True):
     """
     The result is a Q object that takes a dictionary with keys that are fields in the
     assignment position of **kwargs; i.e:
 
       color eq 'yellow' -> {'color' : 'yellow'} -> color=yellow
-      
-    If the Comparison expression has a field in both, positions, that's fine. Use the 
+
+    If the Comparison expression has a field(identifier) in both, positions, that's fine. Use the
     'name' in key (the assignment target) and the F object in the target:
-    
+
       color eq flavor -> {'color' : F('flavor')} -> color=F('flavor')
 
     If there is a primitive literal in the assignment position, then transpose. If this is
@@ -80,12 +81,17 @@ class ComparisonExpr(CommonExpr):
 
       'yellow' eq 'red' -> 'red' eq 'yellow' -> No Dice...
 
-    :return: django.db.models.Q object
+    :return: django.db.models.Q
     """
     if isinstance(self.relation_expr.common_expr, PrimitiveLiteral):
-      return self._transpose.Q
+
+      if allow_transpose:
+        return self._transpose._query(allow_transpose=False)
+      else:
+        raise Exception()
+
     else:
-      return Q(**{self.relation_expr.k: self.common_expr.v})
+      return models.Q(**{self.relation_expr.k: self.common_expr.v})
 
 
 def identity(x):
@@ -97,14 +103,30 @@ class BooleanCommonExpr(CommonExpr):
 
   @property
   def Q(self):
-    # if self.conjunction_expr:
-    #   return self.conjunction_expr.C(self.bool_expr.Q)
-    # else:
-    return self.bool_expr.Q
+    if self.conjunction_expr:
+      return self.conjunction_expr.C(self.bool_expr.Q)
+    else:
+      return self.bool_expr.Q
 
 
 class ConjunctionExpr(CommonExpr):
   __slots__ = 'bool_common_expr',
+
+  def C(self, bool_expr_q):
+    return self._combine(bool_expr_q)
+
+  def _combine(self, other):
+    raise NotImplementedError()
+
+
+class AndExpr(ConjunctionExpr):
+  def _combine(self, other):
+    return self.bool_common_expr.Q & other
+
+
+class OrExpr(ConjunctionExpr):
+  def _combine(self, other):
+    return self.bool_common_expr.Q | other
 
 
 class BooleanParenExpr(CommonExpr):
@@ -113,13 +135,10 @@ class BooleanParenExpr(CommonExpr):
 
 EqExpr = type('EqExpr', (RelationExpr,), {})
 NeExpr = type('NeExpr', (RelationExpr,), {'_k': '__ne'})
-LtExpr = type('LtExpr', (RelationExpr,), {'_k': '__lt', '_opposite': lambda: GtExpr})
-LeExpr = type('LeExpr', (RelationExpr,), {'_k': '__lte', '_opposite': lambda: GeExpr})
-GtExpr = type('GtExpr', (RelationExpr,), {'_k': '__gt', '_opposite': lambda: LtExpr})
-GeExpr = type('GeExpr', (RelationExpr,), {'_k': '__gte', '_opposite': lambda: LeExpr})
-
-AndExpr = type('AndExpr', (ConjunctionExpr,), {})
-OrExpr = type('OrExpr', (ConjunctionExpr,), {})
+LtExpr = type('LtExpr', (RelationExpr,), {'_k': '__lt', 'opposite': lambda: GtExpr})
+LeExpr = type('LeExpr', (RelationExpr,), {'_k': '__lte', 'opposite': lambda: GeExpr})
+GtExpr = type('GtExpr', (RelationExpr,), {'_k': '__gt', 'opposite': lambda: LtExpr})
+GeExpr = type('GeExpr', (RelationExpr,), {'_k': '__gte', 'opposite': lambda: LeExpr})
 
 # Grammar:
 
