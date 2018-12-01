@@ -51,7 +51,13 @@ class RelationExpr(CommonExpr):
     return self.__class__
 
 
-class ComparisonExpr(CommonExpr):
+class QueryExpr:
+  @property
+  def Q(self) -> models.Q:
+    raise NotImplementedError()
+
+
+class ComparisonExpr(CommonExpr, QueryExpr):
   __slots__ = 'relation_expr', 'common_expr',
 
   @property
@@ -88,17 +94,13 @@ class ComparisonExpr(CommonExpr):
       if allow_transpose:
         return self._transpose._query(allow_transpose=False)
       else:
-        raise Exception()
+        raise Exception('Query Exception in Comparison Exception; At least one operand must be an identifier.')
 
     else:
       return models.Q(**{self.relation_expr.k: self.common_expr.v})
 
 
-def identity(x):
-  return x
-
-
-class BooleanCommonExpr(CommonExpr):
+class BooleanCommonExpr(CommonExpr, QueryExpr):
   __slots__ = 'bool_expr', 'conjunction_expr',
 
   @property
@@ -129,8 +131,12 @@ class OrExpr(ConjunctionExpr):
     return self.bool_common_expr.Q | other
 
 
-class BooleanParenExpr(CommonExpr):
+class BooleanParenExpr(CommonExpr, QueryExpr):
   __slots__ = 'bool_common_expr',
+
+  @property
+  def Q(self):
+    return self.bool_common_expr.Q
 
 
 EqExpr = type('EqExpr', (RelationExpr,), {})
@@ -141,7 +147,6 @@ GtExpr = type('GtExpr', (RelationExpr,), {'_k': '__gt', 'opposite': lambda: LtEx
 GeExpr = type('GeExpr', (RelationExpr,), {'_k': '__gte', 'opposite': lambda: LeExpr})
 
 # Grammar:
-
 BWS = RE(r"\s*")
 RWS = RE(r"\s+")
 OPEN = RE(r"\(")

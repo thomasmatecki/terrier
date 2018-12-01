@@ -48,11 +48,13 @@ def test_relationExprs():
 
 
 def test_comparisonExpr():
-  assert expected(boolPredicateExpr <= 'Foo eq 5', ComparisonExpr, {'relation_expr': EqExpr,
-                                                                    'relation_expr.common_expr': Identifier,
-                                                                    'relation_expr.common_expr.name': 'Foo',
-                                                                    'common_expr': PrimitiveLiteral,
-                                                                    'common_expr.value': 5})
+  assert expected(boolPredicateExpr <= 'Foo eq 5',
+                  ComparisonExpr,
+                  {'relation_expr': EqExpr,
+                   'relation_expr.common_expr': Identifier,
+                   'relation_expr.common_expr.name': 'Foo',
+                   'common_expr': PrimitiveLiteral,
+                   'common_expr.value': 5})
 
   assert expected(boolPredicateExpr <= "'Thomas' eq FirstName",
                   ComparisonExpr,
@@ -72,4 +74,7 @@ def test_boolCommonExpr():
 
   bc3 = boolCommonExpr <= "Foo eq 5 or (Bar le 5 and FirstName eq 'Thomas' )"
 
-  bc4 = boolCommonExpr <= "Age gt 30 or (Age le 30 and FirstName eq 'Thomas' ) and LastName eq 'Matecki'"
+  bc4 = boolCommonExpr <= "Age gt 30 or (Age le 30 and FirstName eq 'Thomas' ) or LastName eq 'Matecki'"
+
+  res = bc4.Q
+

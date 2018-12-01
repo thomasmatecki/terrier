@@ -15,10 +15,28 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, re_path
-from flights.views import api
+# from rest_framework import routers
+from django.conf.urls import url, include
+from rest_framework.schemas import get_schema_view
 
+from flights.renderers import ODataMetadataRenderer
+from flights.views import api, FlightPlanViewSet, AirlineViewSet
+from flights.routers import ODataRouter, ODataMetadataGenerator
+
+# Routers provide an easy way of automatically determining the URL conf.
+router = ODataRouter()
+router.register(r'flights', FlightPlanViewSet)
+router.register(r'airlines', AirlineViewSet)
+
+schema_view = get_schema_view(
+  title="Example API",
+  generator_class=ODataMetadataGenerator,
+  renderer_classes=[ODataMetadataRenderer]
+)
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    re_path(r'^api/(?P<entity>\w+)', api)
+  url('^schema$', schema_view),
+  url(r'^', include(router.urls)),
+  path('admin/', admin.site.urls),
+  re_path(r'^api/(?P<entity>\w+)', api)
 ]

@@ -1,4 +1,8 @@
 from django.http import JsonResponse
+from rest_framework import viewsets
+
+from flights.models import FlightPlan, Airline
+from flights.serializers import FlightPlanSerializer, AirlineSerializer
 from parser.grammar import boolCommonExpr
 from flights import models
 from django.forms.models import model_to_dict
@@ -18,6 +22,17 @@ def api(request, entity):
     result_set = entity_model.objects.all()
 
   return JsonResponse(
-    list(map(model_to_dict,
-             result_set)), safe=False
+    {'@odata.context': '',
+     'value': list(map(model_to_dict,
+                       result_set))}, safe=False
   )
+
+
+class FlightPlanViewSet(viewsets.ModelViewSet):
+  queryset = FlightPlan.objects.all()
+  serializer_class = FlightPlanSerializer
+
+
+class AirlineViewSet(viewsets.ModelViewSet):
+  queryset = Airline.objects.all()
+  serializer_class = AirlineSerializer
