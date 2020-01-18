@@ -33,7 +33,7 @@ class Builder(Extractor):
 
     :param builder:
     :param expression:
-    :param exact: Return an `None` if the complete `expression`
+    :param exact: Return a `None` if the complete `expression`
                   is not parsed(i.e. build returns a tail).
     :return:
     """
