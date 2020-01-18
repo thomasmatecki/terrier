@@ -1,5 +1,5 @@
 import unittest
-from parser.combos import *
+from terrier.combos import *
 
 
 class PrimitiveLiteral:
